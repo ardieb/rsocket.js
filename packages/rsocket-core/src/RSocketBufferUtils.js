@@ -106,14 +106,6 @@ export function toBuffer(data: mixed): Buffer {
   return Buffer.from(data);
 }
 
-export function concat(queued: Encodable[]): Encodable {
-  if (typeof(queued[0]) === 'string') {
-    return queued.join('');
-  } else {
-    return Buffer.concat(queued);
-  }
-}
-
 /**
  * Function to create a buffer of a given sized filled with zeros.
  */

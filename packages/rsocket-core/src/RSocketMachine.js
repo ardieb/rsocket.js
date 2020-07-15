@@ -32,7 +32,6 @@ import type {
   RequestResponseFrame,
   RequestStreamFrame,
   RequestChannelFrame,
-  PayloadFrame,
 } from 'rsocket-types';
 import type {ISubject, ISubscription, IPartialSubscriber} from 'rsocket-types';
 import type {PayloadSerializers} from './RSocketSerialization';
@@ -47,9 +46,7 @@ import {
   isComplete,
   isNext,
   isFollows,
-  isMetadata,
   isRespond,
-  printFrame,
   CONNECTION_STREAM_ID,
   ERROR_CODES,
   FLAGS,
@@ -64,7 +61,7 @@ import {
   ResponderLeaseHandler,
   Disposable,
 } from './RSocketLease';
-import {concat} from './RSocketBufferUtils';
+
 
 type Role = 'CLIENT' | 'SERVER';
 const kMAX_FRAME_LENGTH = 0x7ffffff;
@@ -592,7 +589,6 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
       subscription.cancel();
     });
     this._subscriptions.clear();
-    this._receiverBuffers.clear();
     this._connectionAvailability = 0.0;
     this._dispose(
       this._requesterLeaseHandler,
@@ -692,6 +688,39 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
       }
     }
 
+    let buffered = this._receiverBuffers.get(streamId);
+    if (buffered) {
+      if (frame.metadata) {
+        buffered.metadata.push(frame.metadata);
+      }
+      if (frame.data) {
+        buffered.data.push(frame.data);
+      }
+    }
+
+    if (isFollows(frame.flags)) {
+      if (!buffered) {
+        buffered.set(streamId, {
+          head: frame,
+          metadata: frame.metadata ? [frame.metadata] : [],
+          data: frame.data ? [frame.data] : [],
+        });
+      }
+      return;
+    }
+
+    if (buffered) {
+      if (buffered.data.length) {
+        buffered.head.data = Buffer.concat(buffered.data);
+      }
+      if (buffered.metadata.length) {
+        buffered.head.metadata = Buffer.concat(buffered.metadata);
+      }
+      buffered.head.flags |= frame.flags;
+      frame = buffered.head;
+      this._receiverBuffers.remove(streamId);
+    }
+
     switch (frame.type) {
       case FRAME_TYPES.CANCEL:
         this._handleCancel(streamId, frame);
@@ -700,7 +729,6 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
         this._handleRequestN(streamId, frame);
         break;
       case FRAME_TYPES.REQUEST_FNF:
-        frame = this._bufferOrOutput(streamId, frame);
         this._handleFireAndForget(streamId, frame);
         break;
       case FRAME_TYPES.REQUEST_RESPONSE:
@@ -717,7 +745,20 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
         this._handleStreamError(streamId, error);
         break;
       case FRAME_TYPES.PAYLOAD:
-        this._handlePayload(streamId, frame);
+        const receiver = this._receivers.get(streamId);
+        if (receiver != null) {
+          if (isNext(frame.flags)) {
+            const payload = {
+              data: this._serializers.data.deserialize(frame.data),
+              metadata: this._serializers.metadata.deserialize(frame.metadata),
+            };
+            receiver.onNext(payload);
+          }
+          if (isComplete(frame.flags)) {
+            this._receivers.delete(streamId);
+            receiver.onComplete();
+          }
+        }
         break;
       default:
         if (__DEV__) {
@@ -737,10 +778,6 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
       subscription.cancel();
       this._subscriptions.delete(streamId);
     }
-    const buf = this._receiverBuffers.get(streamId);
-    if (buf) {
-      this._receiverBuffers.delete(streamId);
-    }
   }
 
   _handleRequestN(streamId: number, frame: RequestNFrame): void {
@@ -750,75 +787,12 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
     }
   }
 
-  _handlePayload(streamId: number, frame: PayloadFrame): void {
-    let buf = this._receiverBuffers.get(streamId);
-
-    if (isFollows(frame.flags) && !check(buf)) {
-      this._receiverBuffers.set(streamId, {
-        frame: frame,
-        data: check(frame.data) ? [frame.data.slice(0)] : [],
-        metadata: check(frame.metadata) ? [frame.metadata.slice(0)] : [],
-      });
-      return;
-    }
-
-    if (check(buf)) {
-      if (check(frame.data)) {
-        buf.data.push(frame.data.slice(0));
-      }
-      if (check(frame.metadata)) {
-        buf.metadata.push(frame.metadata.slice(0));
-      }
-      if (isFollows(frame.flags)) {
-        return; // Early return if more fragments are to come
-      }
-      let newFrame = isMetadata(buf.frame.flags) ?
-        Object.assign({}, buf.frame, {data: concat(buf.data), metadata: concat(buf.metadata)}) :
-        Object.assign({}, buf.frame, {data: concat(buf.data)});
-      newFrame.flags ^= FLAGS.FOLLOWS;
-      this._receiverBuffers.delete(streamId);
-      this._handleStreamFrame(streamId, newFrame);
-      return;
-    }
-
-    const receiver = this._receivers.get(streamId);
-    if (receiver != null) {
-      if (isNext(frame.flags)) {
-        const payload = {
-          data: this._serializers.data.deserialize(frame.data),
-          metadata: this._serializers.metadata.deserialize(frame.metadata),
-        };
-        receiver.onNext(payload);
-      }
-      if (isComplete(frame.flags)) {
-        this._receivers.delete(streamId);
-        receiver.onComplete();
-      }
-    }
-  }
-
   _handleFireAndForget(streamId: number, frame: RequestFnfFrame): void {
-    if (isFollows(frame.flags)) {
-      this._receiverBuffers.set(streamId, {
-        frame: frame,
-        data: check(frame.data) ? [frame.data.slice(0)] : [],
-        metadata: check(frame.metadata) ? [frame.metadata.slice(0)] : [],
-      });
-      return;
-    }
     const payload = this._deserializePayload(frame);
     this._requestHandler.fireAndForget(payload);
   }
 
   _handleRequestResponse(streamId: number, frame: RequestResponseFrame): void {
-    if (isFollows(frame.flags)) {
-      this._receiverBuffers.set(streamId, {
-        frame: frame,
-        data: check(frame.data) ? [frame.data.slice(0)] : [],
-        metadata: check(frame.metadata) ? [frame.metadata.slice(0)] : [],
-      });
-      return;
-    }
     const payload = this._deserializePayload(frame);
     this._requestHandler.requestResponse(payload).subscribe({
       onComplete: payload => {
@@ -836,14 +810,6 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
   }
 
   _handleRequestStream(streamId: number, frame: RequestStreamFrame): void {
-    if (isFollows(frame.flags)) {
-      this._receiverBuffers.set(streamId, {
-        frame: frame,
-        data: check(frame.data) ? [frame.data.slice(0)] : [],
-        metadata: check(frame.metadata) ? [frame.metadata.slice(0)] : [],
-      });
-      return;
-    }
     const payload = this._deserializePayload(frame);
     this._requestHandler.requestStream(payload).subscribe({
       onComplete: () => this._sendStreamComplete(streamId),
@@ -857,14 +823,6 @@ class RSocketMachineImpl<D, M> implements RSocketMachine<D, M> {
   }
 
   _handleRequestChannel(streamId: number, frame: RequestChannelFrame): void {
-    if (isFollows(frame.flags)) {
-      this._receiverBuffers.set(streamId, {
-        frame: frame,
-        data: check(frame.data) ? [frame.data.slice(0)] : [],
-        metadata: check(frame.metadata) ? [frame.metadata.slice(0)] : [],
-      });
-      return;
-    }
     const existingSubscription = this._subscriptions.get(streamId);
     if (existingSubscription) {
       //Likely a duplicate REQUEST_CHANNEL frame, ignore per spec
@@ -996,8 +954,4 @@ function deserializePayload<D, M>(
     data: serializers.data.deserialize(frame.data),
     metadata: serializers.metadata.deserialize(frame.metadata),
   };
-}
-
-function check(arg: any) {
-  return (typeof(arg) !== 'undefined' && (arg !== null));
 }

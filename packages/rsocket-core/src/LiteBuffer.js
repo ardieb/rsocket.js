@@ -1,7 +1,7 @@
 'use strict';
 // @flow
 // max int64
-const K_MAX_LENGTH = 0x7fffffff;
+const K_MAX_LENGTH = 0x7fffffffffffffff;
 
 function createBuffer(length): Buffer {
   if (length > K_MAX_LENGTH) {
@@ -208,7 +208,7 @@ Buffer.concat = function concat(list: Uint8Array[], length?: number): Buffer {
     return Buffer.alloc(0);
   }
 
-  let i = 0;
+  let i;
   if (length === undefined) {
     length = 0;
     for (i = 0; i < list.length; ++i) {

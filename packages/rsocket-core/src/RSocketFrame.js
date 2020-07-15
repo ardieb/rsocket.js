@@ -130,7 +130,7 @@ export function isNext(flags: number): boolean {
  * Returns true iff the flags have the FOLLOWS bit set.
  */
 export function isFollows(flags: number): boolean {
-  return (flags & FLAGS.FOLLOWS) === FLAGS.FOLLOWS;
+  return (flags & FLAGS.FOLLOWS);
 }
 
 /**
