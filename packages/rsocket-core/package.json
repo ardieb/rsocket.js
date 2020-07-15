@@ -1,10 +1,10 @@
 {
-  "name": "rsocket-core",
+  "name": "@ardieb/rsocket-core",
   "description": "RSocket core",
   "version": "0.0.19",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rsocket/rsocket-js.git"
+    "url": "https://github.com/ardieb/rsocket-js-mirror.git"
   },
   "license": "BSD-3-Clause",
   "main": "build/index.js",
@@ -12,5 +12,8 @@
     "fbjs": "^1.0.0",
     "rsocket-flowable": "^0.0.14",
     "rsocket-types": "^0.0.16"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
   }
 }

@@ -17,7 +17,7 @@
 
 /* eslint-disable */
 
-import {FLAGS, FLAGS_MASK, FRAME_TYPES, MAX_REQUEST_N} from '../RSocketFrame';
+import {printFrame, FLAGS, FLAGS_MASK, FRAME_TYPES, MAX_REQUEST_N} from '../RSocketFrame';
 import RSocketClient from '../RSocketClient';
 import {JsonSerializers} from '../RSocketSerialization';
 import {genMockConnection} from 'MockDuplexConnection';
@@ -710,6 +710,48 @@ describe('RSocketClient', () => {
 
         expect(subscriber.onComplete.mock.calls.length).toBe(0);
         expect(subscriber.onError.mock.calls.length).toBe(0);
+      });
+
+      it('fragmented payloads', () => {
+        socket.requestStream(payload).subscribe(subscriber);
+        subscriber.mock.request(42);
+        const responseFrame1 = {
+          streamId: 1,
+          type: FRAME_TYPES.PAYLOAD,
+          flags: FLAGS.NEXT | FLAGS.FOLLOWS,
+          data: '{"num":1}',
+          metadata: '{}',
+        };
+        const responseFrame2 = {
+          streamId: 1,
+          type: FRAME_TYPES.PAYLOAD,
+          flags: FLAGS.NEXT,
+          data: '{"num":2}',
+          metadata: '{}',
+        };
+        const responseFrame3 = {
+          streamId: 1,
+          type: FRAME_TYPES.PAYLOAD,
+          flags: FLAGS.NEXT | FLAGS.FOLLOWS,
+          data: Buffer.from('hello'),
+          metadata: null,
+        };
+        const responseFrame4 = {
+          streamId: 1,
+          type: FRAME_TYPES.PAYLOAD,
+          flags: FLAGS.NEXT,
+          data: Buffer.from(' next'),
+          metadata: null,
+        };
+        transport.receive.mock.publisher.onNext(responseFrame1);
+        transport.receive.mock.publisher.onNext(responseFrame2);
+        expect(subscriber.onNext.mock.calls.length).toBe(1);
+        const response = subscriber.onNext.mock.calls[0][0];
+        transport.receive.mock.publisher.onNext(responseFrame3);
+        transport.receive.mock.publisher.onNext(responseFrame4);
+        expect(subscriber.onNext.mock.calls.length).toBe(2);
+        const response2 = subscriber.onNext.mock.calls[1][0];
+        console.log(response2.data.toString());
       });
 
       // open -> request() -> open (requests)

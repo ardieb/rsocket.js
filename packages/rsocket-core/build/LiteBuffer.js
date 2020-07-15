@@ -1,31 +1,28 @@
 'use strict';
-// @flow
-// max int64
-const K_MAX_LENGTH = 0x7fffffff;
 
-function createBuffer(length): Buffer {
+// max int64
+Object.defineProperty(exports, '__esModule', {value: true});
+exports.Buffer = Buffer;
+const K_MAX_LENGTH = 0x7fffffff;
+function createBuffer(length) {
   if (length > K_MAX_LENGTH) {
     throw new RangeError(
-      'The value "' + length + '" is invalid for option "size"',
+      'The value "' + length + '" is invalid for option "size"'
     );
-  }
-  // Return an augmented `Uint8Array` instance
-  const buf = new Uint8Array(length);
-  // $FlowFixMe
+  } // Return an augmented `Uint8Array` instance
+  const buf = new Uint8Array(length); // $FlowFixMe
   buf.__proto__ = Buffer.prototype;
   return buf;
 }
-
 const bufferExists = typeof global !== 'undefined' &&
   global.hasOwnProperty('Buffer');
-
-export const LiteBuffer = bufferExists ? global.Buffer : Buffer;
-export function Buffer(arg: any, encodingOrOffset?: number, length?: number) {
+const LiteBuffer = (exports.LiteBuffer = bufferExists ? global.Buffer : Buffer);
+function Buffer(arg, encodingOrOffset, length) {
   // Common case.
   if (typeof arg === 'number') {
     if (typeof encodingOrOffset === 'string') {
       throw new TypeError(
-        'The "string" argument must be of type string. Received type number',
+        'The "string" argument must be of type string. Received type number'
       );
     }
     return allocUnsafe(arg);
@@ -33,7 +30,7 @@ export function Buffer(arg: any, encodingOrOffset?: number, length?: number) {
   return from(arg, encodingOrOffset, length);
 }
 
-function from(value, encodingOrOffset, length): Buffer {
+function from(value, encodingOrOffset, length) {
   if (ArrayBuffer.isView(value)) {
     return fromArrayLike(value);
   }
@@ -42,7 +39,7 @@ function from(value, encodingOrOffset, length): Buffer {
     throw TypeError(
       'The first argument must be one of type, Buffer, ArrayBuffer, Array, ' +
         'or Array-like Object. Received type ' +
-        typeof value,
+        typeof value
     );
   }
 
@@ -55,7 +52,7 @@ function from(value, encodingOrOffset, length): Buffer {
 
   if (typeof value === 'number') {
     throw new TypeError(
-      'The "value" argument must not be of type number. Received type number',
+      'The "value" argument must not be of type number. Received type number'
     );
   }
 
@@ -72,11 +69,11 @@ function from(value, encodingOrOffset, length): Buffer {
   throw new TypeError(
     'The first argument must be one of type string, Buffer, ArrayBuffer, ' +
       'Array, or Array-like Object. Received type ' +
-      typeof value,
+      typeof value
   );
 }
 
-Buffer.from = function(value: any, encodingOrOffset?, length?): Buffer {
+Buffer.from = function(value, encodingOrOffset, length) {
   return from(value, encodingOrOffset, length);
 };
 
@@ -91,7 +88,7 @@ function assertSize(size) {
     throw new TypeError('"size" argument must be of type number');
   } else if (size < 0) {
     throw new RangeError(
-      'The value "' + size + '" is invalid for option "size"',
+      'The value "' + size + '" is invalid for option "size"'
     );
   }
 }
@@ -111,20 +108,16 @@ function allocUnsafe(size) {
   return createBuffer(size < 0 ? 0 : checked(size) | 0);
 }
 
-function fromArrayLike(array: any) {
+function fromArrayLike(array) {
   const length = array.length < 0 ? 0 : checked(array.length) | 0;
-  const buf: Buffer = createBuffer(length);
+  const buf = createBuffer(length);
   for (let i = 0; i < length; i += 1) {
     buf[i] = array[i] & 255;
   }
   return buf;
 }
 
-function fromArrayBuffer(
-  array: any,
-  byteOffset?: number,
-  length?: number,
-): Buffer {
+function fromArrayBuffer(array, byteOffset, length) {
   let buf;
   if (byteOffset === undefined && length === undefined) {
     buf = new Uint8Array(array);
@@ -139,10 +132,10 @@ function fromArrayBuffer(
   return buf;
 }
 
-function fromObject(obj: Buffer) {
+function fromObject(obj) {
   if (Buffer.isBuffer(obj)) {
     const len = checked(obj.length) | 0;
-    const buf: Buffer = createBuffer(len);
+    const buf = createBuffer(len);
 
     if (buf.length === 0) {
       return buf;
@@ -170,7 +163,7 @@ function checked(length) {
       'Attempt to allocate Buffer larger than maximum ' +
         'size: 0x' +
         K_MAX_LENGTH.toString(16) +
-        ' bytes',
+        ' bytes'
     );
   }
   return length | 0;
@@ -199,7 +192,7 @@ Buffer.isEncoding = function isEncoding(encoding) {
   }
 };
 
-Buffer.concat = function concat(list: Uint8Array[], length?: number): Buffer {
+Buffer.concat = function concat(list, length) {
   if (!Array.isArray(list)) {
     throw new TypeError('"list" argument must be an Array of Buffers');
   }
@@ -234,20 +227,11 @@ Buffer.concat = function concat(list: Uint8Array[], length?: number): Buffer {
 
 Buffer.prototype._isBuffer = true;
 
-Buffer.prototype.includes = function includes(
-  val: any,
-  byteOffset: number,
-  encoding: number,
-) {
+Buffer.prototype.includes = function includes(val, byteOffset, encoding) {
   return this.indexOf(val, byteOffset, encoding) !== -1;
 };
 
-function blitBuffer(
-  src: number[],
-  dst: number[],
-  offset: number,
-  length: number,
-) {
+function blitBuffer(src, dst, offset, length) {
   let i = 0;
   for (; i < length; ++i) {
     if (i + offset >= dst.length || i >= src.length) break;
@@ -256,26 +240,16 @@ function blitBuffer(
   return i;
 }
 
-function utf8Write(
-  buf: number[],
-  input: string,
-  offset: number,
-  length: number,
-) {
+function utf8Write(buf, input, offset, length) {
   return blitBuffer(
     utf8ToBytes(input, buf.length - offset),
     buf,
     offset,
-    length,
+    length
   );
 }
 
-Buffer.prototype.write = function write(
-  input: string,
-  offset?: number,
-  length?: number,
-  encoding?: 'utf8',
-) {
+Buffer.prototype.write = function write(input, offset, length, encoding) {
   if (offset === undefined) {
     encoding = 'utf8';
     length = this.length;
@@ -300,7 +274,7 @@ Buffer.prototype.write = function write(
     }
   } else {
     throw new Error(
-      'Buffer.write(string, encoding, offset[, length]) is no longer supported',
+      'Buffer.write(string, encoding, offset[, length]) is no longer supported'
     );
   }
   switch (encoding) {
@@ -325,7 +299,7 @@ function decodeCodePointsArray(codePoints) {
   while (i < len) {
     res += String.fromCharCode.apply(
       String,
-      codePoints.slice(i, (i += MAX_ARGUMENTS_LENGTH)),
+      codePoints.slice(i, (i += MAX_ARGUMENTS_LENGTH))
     );
   }
   return res;
@@ -341,7 +315,7 @@ function asciiSlice(buf, start, end) {
   return ret;
 }
 
-Buffer.prototype.slice = function slice(start: number, end: number) {
+Buffer.prototype.slice = function slice(start, end) {
   const len = this.length;
   start = ~~start;
   end = end === undefined ? len : ~~end;
@@ -375,28 +349,19 @@ function checkOffset(offset, ext, length) {
     throw new RangeError('Trying to access beyond buffer length');
 }
 
-Buffer.prototype.readUInt8 = function readUInt8(
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.readUInt8 = function readUInt8(offset, noAssert) {
   offset = offset >>> 0;
   if (!noAssert) checkOffset(offset, 1, this.length);
   return this[offset];
 };
 
-Buffer.prototype.readUInt16BE = function readUInt16BE(
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
   offset = offset >>> 0;
   if (!noAssert) checkOffset(offset, 2, this.length);
   return this[offset] << 8 | this[offset + 1];
 };
 
-Buffer.prototype.readUInt32BE = function readUInt32BE(
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
   offset = offset >>> 0;
   if (!noAssert) checkOffset(offset, 4, this.length);
 
@@ -404,30 +369,21 @@ Buffer.prototype.readUInt32BE = function readUInt32BE(
     (this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3]);
 };
 
-Buffer.prototype.readInt8 = function readInt8(
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.readInt8 = function readInt8(offset, noAssert) {
   offset = offset >>> 0;
   if (!noAssert) checkOffset(offset, 1, this.length);
   if (!(this[offset] & 0x80)) return this[offset];
   return (0xff - this[offset] + 1) * -1;
 };
 
-Buffer.prototype.readInt16BE = function readInt16BE(
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
   offset = offset >>> 0;
   if (!noAssert) checkOffset(offset, 2, this.length);
   const val = this[offset + 1] | this[offset] << 8;
   return val & 0x8000 ? val | 0xffff0000 : val;
 };
 
-Buffer.prototype.readInt32BE = function readInt32BE(
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
   offset = offset >>> 0;
   if (!noAssert) checkOffset(offset, 4, this.length);
 
@@ -445,11 +401,7 @@ function checkInt(buf, value, offset, ext, max, min) {
   if (offset + ext > buf.length) throw new RangeError('Index out of range');
 }
 
-Buffer.prototype.writeUInt8 = function writeUInt8(
-  value: number,
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.writeUInt8 = function writeUInt8(value, offset, noAssert) {
   value = +value;
   offset = offset >>> 0;
   if (!noAssert) checkInt(this, value, offset, 1, 0xff, 0);
@@ -458,9 +410,9 @@ Buffer.prototype.writeUInt8 = function writeUInt8(
 };
 
 Buffer.prototype.writeUInt16BE = function writeUInt16BE(
-  value: number,
-  offset: number,
-  noAssert: boolean,
+  value,
+  offset,
+  noAssert
 ) {
   value = +value;
   offset = offset >>> 0;
@@ -471,9 +423,9 @@ Buffer.prototype.writeUInt16BE = function writeUInt16BE(
 };
 
 Buffer.prototype.writeUInt32BE = function writeUInt32BE(
-  value: number,
-  offset: number,
-  noAssert: boolean,
+  value,
+  offset,
+  noAssert
 ) {
   value = +value;
   offset = offset >>> 0;
@@ -485,11 +437,7 @@ Buffer.prototype.writeUInt32BE = function writeUInt32BE(
   return offset + 4;
 };
 
-Buffer.prototype.writeInt16BE = function writeInt16BE(
-  value: number,
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.writeInt16BE = function writeInt16BE(value, offset, noAssert) {
   value = +value;
   offset = offset >>> 0;
   if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000);
@@ -498,11 +446,7 @@ Buffer.prototype.writeInt16BE = function writeInt16BE(
   return offset + 2;
 };
 
-Buffer.prototype.writeInt32BE = function writeInt32BE(
-  value: number,
-  offset: number,
-  noAssert: boolean,
-) {
+Buffer.prototype.writeInt32BE = function writeInt32BE(value, offset, noAssert) {
   value = +value;
   offset = offset >>> 0;
   if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000);
@@ -563,7 +507,7 @@ function slowToString(encoding, start, end) {
     }
   }
 }
-function utf8ToBytes(str: string, pUnits: number = Infinity) {
+function utf8ToBytes(str, pUnits = Infinity) {
   let units = pUnits;
   let codePoint;
   const length = str.length;
@@ -622,7 +566,7 @@ function utf8ToBytes(str: string, pUnits: number = Infinity) {
       bytes.push(
         codePoint >> 0xc | 0xe0,
         codePoint >> 0x6 & 0x3f | 0x80,
-        codePoint & 0x3f | 0x80,
+        codePoint & 0x3f | 0x80
       );
     } else if (codePoint < 0x110000) {
       if ((units -= 4) < 0) break;
@@ -630,7 +574,7 @@ function utf8ToBytes(str: string, pUnits: number = Infinity) {
         codePoint >> 0x12 | 0xf0,
         codePoint >> 0xc & 0x3f | 0x80,
         codePoint >> 0x6 & 0x3f | 0x80,
-        codePoint & 0x3f | 0x80,
+        codePoint & 0x3f | 0x80
       );
     } else {
       throw new Error('Invalid code point');
@@ -640,7 +584,7 @@ function utf8ToBytes(str: string, pUnits: number = Infinity) {
   return bytes;
 }
 
-function byteLength(string, encoding): number {
+function byteLength(string, encoding) {
   if (Buffer.isBuffer(string)) {
     return string.length;
   }
@@ -651,7 +595,7 @@ function byteLength(string, encoding): number {
     throw new TypeError(
       'The "string" argument must be one of type string, Buffer, or ' +
         'ArrayBuffer. Received type ' +
-        typeof string,
+        typeof string
     );
   }
 
@@ -765,12 +709,7 @@ function utf8Slice(buf, start, end) {
 }
 
 // copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
-Buffer.prototype.copy = function copy(
-  target: Buffer,
-  targetStart?: number,
-  start?: number,
-  end?: number,
-) {
+Buffer.prototype.copy = function copy(target, targetStart, start, end) {
   if (!Buffer.isBuffer(target))
     throw new TypeError('argument should be a Buffer');
   if (!start) start = 0;
@@ -813,7 +752,7 @@ Buffer.prototype.copy = function copy(
     Uint8Array.prototype.set.call(
       target,
       this.subarray(start, end),
-      targetStart,
+      targetStart
     );
   }
 
